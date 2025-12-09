@@ -49,6 +49,15 @@ private:
     }
 
 public:
+    // DELETE Copying
+    FluxDBClient(const FluxDBClient&) = delete;
+    FluxDBClient& operator=(const FluxDBClient&) = delete;
+
+    // ENABLE Moving
+    FluxDBClient(FluxDBClient&& other) noexcept : host(std::move(other.host)), port(other.port), sock(other.sock) {
+        other.sock = INVALID_SOCKET; // Nullify the old one so destructor doesn't kill it
+    }
+
     FluxDBClient(const std::string& h, int p) : host(h), port(p) {
         WSADATA wsaData;
         WSAStartup(MAKEWORD(2, 2), &wsaData);
@@ -58,6 +67,22 @@ public:
     ~FluxDBClient() {
         if (sock != INVALID_SOCKET) closesocket(sock);
         WSACleanup();
+    }
+
+    FluxDBClient& operator=(FluxDBClient&& other) noexcept {
+        if (this != &other) {
+            // Close our current socket if open
+            if (sock != INVALID_SOCKET) closesocket(sock);
+            
+            // Steal resources
+            sock = other.sock;
+            host = std::move(other.host);
+            port = other.port;
+            
+            // Nullify source
+            other.sock = INVALID_SOCKET;
+        }
+        return *this;
     }
 
     void connectToServer() {
@@ -114,10 +139,13 @@ public:
         while (std::getline(ss, line)) {
             if (line.find("ID ") == 0) {
                 size_t jsonStart = line.find('{');
+                Id docId = std::stoull(line.substr(3, jsonStart - 3));
                 if (jsonStart != std::string::npos) {
                     std::string jsonStr = line.substr(jsonStart);
                     
                     QueryParser parser(jsonStr);
+                    Document d = parser.parseJSON();
+                    d["_id"] = std::make_shared<Value>(static_cast<int64_t>(docId));
                     results.push_back(parser.parseJSON());
                 }
             }
