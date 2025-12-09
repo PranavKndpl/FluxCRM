@@ -1,1 +1,3 @@
 *.exe
+CMakeLists.txt
+test\
