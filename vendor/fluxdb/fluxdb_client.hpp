@@ -125,12 +125,28 @@ public:
         return 0; 
     }
 
+    bool update(Id id, const Document& doc) {
+        // Wrapper to serialize document
+        Value v(doc);
+        std::string json = v.ToJson();
+        
+        // Command: UPDATE <id> <json>
+        std::string resp = sendCommand("UPDATE " + std::to_string(id) + " " + json);
+        return resp == "OK UPDATED";
+    }
+
+    bool remove(Id id) {
+        std::string resp = sendCommand("DELETE " + std::to_string(id));
+        return resp == "OK DELETED";
+    }
+
+    // In FluxCRM/vendor/fluxdb/fluxdb_client.hpp
+
     std::vector<Document> find(const Document& query) {
         Value v(query);
         std::string resp = sendCommand("FIND " + v.ToJson());
         
         std::vector<Document> results;
-        
         std::stringstream ss(resp);
         std::string line;
         
@@ -139,18 +155,82 @@ public:
         while (std::getline(ss, line)) {
             if (line.find("ID ") == 0) {
                 size_t jsonStart = line.find('{');
-                Id docId = std::stoull(line.substr(3, jsonStart - 3));
                 if (jsonStart != std::string::npos) {
+                    std::string idStr = line.substr(3, jsonStart - 3);
                     std::string jsonStr = line.substr(jsonStart);
                     
-                    QueryParser parser(jsonStr);
-                    Document d = parser.parseJSON();
-                    d["_id"] = std::make_shared<Value>(static_cast<int64_t>(docId));
-                    results.push_back(parser.parseJSON());
+                    // --- SAFETY & DEBUGGING ---
+                    try {
+                        QueryParser parser(jsonStr);
+                        Document d = parser.parseJSON();
+                        
+                        try {
+                            d["_id"] = std::make_shared<Value>(static_cast<int64_t>(std::stoull(idStr)));
+                        } catch (...) {}
+
+                        results.push_back(d);
+                    } 
+                    catch (const std::exception& e) {
+                        // PRINT THE BAD DATA so we know why it failed
+                        std::cerr << "[Client Warning] Failed to parse: [" << jsonStr << "]\n";
+                        std::cerr << "   -> Error: " << e.what() << "\n";
+                    }
+                    // ---------------------------
                 }
             }
         }
         return results;
+    }
+
+    int publish(const std::string& channel, const std::string& message) {
+        std::string cmd = "PUBLISH " + channel + " " + message;
+        std::string resp = sendCommand(cmd);
+        
+        // Parse "OK RECEIVERS=5"
+        if (resp.find("OK RECEIVERS=") == 0) {
+            try {
+                return std::stoi(resp.substr(13));
+            } catch (...) { return 0; }
+        }
+        return 0;
+    }
+
+    // Listen loop (Blocking - used by background thread)
+    // Callback format: void(message_content)
+    void subscribe(const std::string& channel, std::function<void(const std::string&)> callback) {
+        if (sock == INVALID_SOCKET) return;
+        
+        std::string cmd = "SUBSCRIBE " + channel + "\n";
+        if (send(sock, cmd.c_str(), cmd.length(), 0) == SOCKET_ERROR) return;
+        
+        // Custom Read Loop for Streaming
+        char buffer[4096];
+        while (true) {
+            int bytes = recv(sock, buffer, 4096, 0);
+            if (bytes <= 0) break; // Disconnected or Error
+            
+            buffer[bytes] = '\0';
+            std::string raw(buffer);
+            
+            // Simple Line Parsing
+            // Format: MESSAGE <channel> <content>
+            std::stringstream ss(raw);
+            std::string line;
+            while(std::getline(ss, line)) {
+                if (!line.empty() && line.back() == '\r') line.pop_back(); // Trim
+                
+                if (line.find("MESSAGE ") == 0) {
+                    // Extract content (Find second space)
+                    size_t firstSpace = line.find(' ');
+                    size_t secondSpace = line.find(' ', firstSpace + 1);
+                    
+                    if (secondSpace != std::string::npos) {
+                        std::string msg = line.substr(secondSpace + 1);
+                        callback(msg);
+                    }
+                }
+            }
+        }
     }
     
     std::string rawCommand(const std::string& cmd) {

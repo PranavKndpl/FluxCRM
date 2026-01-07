@@ -1,4 +1,4 @@
 *.exe
-CMakeLists.txt
-test\
+test/
 imgui.ini
+obj/
