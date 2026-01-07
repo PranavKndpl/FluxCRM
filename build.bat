@@ -33,7 +33,7 @@ g++ src/main.cpp obj/*.o ^
     -static -O3
 
 if %errorlevel% neq 0 (
-    echo ❌ Build Failed!
+    echo Build Failed!
 ) else (
-    echo ✅ Build Success! (Run bin\flux_crm.exe)
+    echo Build Success! (Run bin\flux_crm.exe)
 )

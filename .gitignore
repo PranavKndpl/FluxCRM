@@ -1,4 +1,9 @@
 *.exe
 test/
 imgui.ini
+bin/
 obj/
+*.o
+*.lib
+*.dll
+*.pdb
