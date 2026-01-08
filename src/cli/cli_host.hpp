@@ -78,7 +78,7 @@ namespace CLI {
 
     public:
         void run() {
-            std::cout << "FluxCRM v1.1 (CLI Mode)\nType 'HELP' for commands.\n";
+            std::cout << "FluxCRM (CLI Mode)\nType 'HELP' for commands.\n";
 
             while (running) {
                 std::cout << (is_connected ? "flux> " : "(offline)> ");
@@ -92,7 +92,22 @@ namespace CLI {
 
                 try {
                     if (cmd == "EXIT") running = false;
-                    
+
+                    else if (cmd == "HELP") {
+                        std::cout <<
+                            "\nAvailable Commands:\n"
+                            "  CONNECT <ip> <port> <pass>\n"
+                            "  ADD <stage> <name> <company> <value>\n"
+                            "  LIST [stage]\n"
+                            "  PROMOTE <id> <stage>\n"
+                            "  TASK <id> <desc>\n"
+                            "  IMPORT <file.csv>\n"
+                            "  EXPORT <file.csv>\n"
+                            "  STATS\n"
+                            "  GOAL <amount>\n"
+                            "  EXIT\n\n";
+                    }
+
                     else if (cmd == "CONNECT") {
                         if (args.size() < 4) { std::cout << "Usage: CONNECT <ip> <port> <pass>\n"; continue; }
                         if (crm.connect(args[1], std::stoi(args[2]), args[3])) {
@@ -101,7 +116,7 @@ namespace CLI {
                         } else std::cout << "ERR " << crm.getError() << "\n";
                     }
 
-                    else if (!is_connected && cmd != "HELP") { std::cout << "ERR Not connected.\n"; continue; }
+                    else if (!is_connected) { std::cout << "ERR Not connected.\n"; continue; }
 
                     else if (cmd == "ADD" && args.size() >= 4) {
                         Lead l;
@@ -167,6 +182,7 @@ namespace CLI {
                          }
                          std::cout << "\n";
                     }
+
                     else if (cmd == "LIST") {
                         std::string stage = (args.size() > 1) ? args[1] : "New";
                         auto leads = crm.getLeadsByStage(stage);
