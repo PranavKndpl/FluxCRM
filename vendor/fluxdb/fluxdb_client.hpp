@@ -32,19 +32,27 @@ private:
             throw std::runtime_error("Send failed");
         }
 
-        // Receive Buffer
-        char buffer[4096];
+        // Dynamic Buffer Strategy
         std::string response;
+        char buffer[4096]; // Keep the chunk size on the stack
         
-        int bytes = recv(sock, buffer, 4096, 0);
-        if (bytes > 0) {
-            buffer[bytes] = '\0';
-            response = std::string(buffer);
+        while (true) {
+            int bytes = recv(sock, buffer, sizeof(buffer), 0);
+            
+            // 1. Connection closed or Error
+            if (bytes <= 0) break; 
 
+            // 2. Append chunk to our total response
+            response.append(buffer, bytes);
+
+            // 3. Check for Protocol Delimiter (Newline)
+            // FluxDB sends messages ending in '\n'. If we found it, we are done.
+            if (response.back() == '\n') {
+                response.pop_back(); // Remove the delimiter
+                break;
+            }
         }
-        
-        if (!response.empty() && response.back() == '\n') response.pop_back();
-        
+
         return response;
     }
 
@@ -140,8 +148,6 @@ public:
         return resp == "OK DELETED";
     }
 
-    // In FluxCRM/vendor/fluxdb/fluxdb_client.hpp
-
     std::vector<Document> find(const Document& query) {
         Value v(query);
         std::string resp = sendCommand("FIND " + v.ToJson());
@@ -171,11 +177,11 @@ public:
                         results.push_back(d);
                     } 
                     catch (const std::exception& e) {
-                        // PRINT THE BAD DATA so we know why it failed
+                    
                         std::cerr << "[Client Warning] Failed to parse: [" << jsonStr << "]\n";
                         std::cerr << "   -> Error: " << e.what() << "\n";
                     }
-                    // ---------------------------
+                    
                 }
             }
         }
@@ -186,7 +192,6 @@ public:
         std::string cmd = "PUBLISH " + channel + " " + message;
         std::string resp = sendCommand(cmd);
         
-        // Parse "OK RECEIVERS=5"
         if (resp.find("OK RECEIVERS=") == 0) {
             try {
                 return std::stoi(resp.substr(13));
@@ -195,8 +200,7 @@ public:
         return 0;
     }
 
-    // Listen loop (Blocking - used by background thread)
-    // Callback format: void(message_content)
+    // Listen loop 
     void subscribe(const std::string& channel, std::function<void(const std::string&)> callback) {
         if (sock == INVALID_SOCKET) return;
         
@@ -212,7 +216,6 @@ public:
             buffer[bytes] = '\0';
             std::string raw(buffer);
             
-            // Simple Line Parsing
             // Format: MESSAGE <channel> <content>
             std::stringstream ss(raw);
             std::string line;

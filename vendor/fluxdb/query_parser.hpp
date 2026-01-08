@@ -17,7 +17,7 @@ private:
         while (pos < input.size() && std::isspace(input[pos])) pos++;
     }
 
-    bool match(char expected) { //match a specific character
+    bool match(char expected) { 
         skipWhitespace();
         if (pos < input.size() && input[pos] == expected) {
             pos++;
@@ -101,13 +101,13 @@ public:
         if (c == '"') return std::make_shared<Value>(parseString());
         if (std::isdigit(c) || c == '-') return parseNumber();
         if (c == 't' || c == 'f') return parseBool();
-        if (c == '{') return std::make_shared<Value>(parseJSON()); // Recursion
+        if (c == '{') return std::make_shared<Value>(parseJSON()); 
         if (c == '[') return parseArray();
         
         throw std::runtime_error("Unknown value type");
     }
 
-    // Main Parser Entry: Expects a JSON Object "{ ... }"
+    // Main Parser Entry
     Document parseJSON() {
         skipWhitespace();
         if (!match('{')) throw std::runtime_error("Document must start with '{'");

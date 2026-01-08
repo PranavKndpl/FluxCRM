@@ -4,22 +4,44 @@
 
 namespace UI {
     inline void RenderStatusBar(AppState& state) {
-        float winHeight = 40.0f;
-        // Dock to bottom
-        ImGui::SetNextWindowPos(ImVec2(0, ImGui::GetIO().DisplaySize.y - winHeight));
-        ImGui::SetNextWindowSize(ImVec2(ImGui::GetIO().DisplaySize.x, winHeight));
+        ImGuiViewport* viewport = ImGui::GetMainViewport();
         
-        // NoTitleBar + NoBackground makes it look like a transparent overlay
-        ImGui::Begin("Ticker", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoBackground);
+        ImVec2 pos = viewport->WorkPos;
+        pos.y += viewport->WorkSize.y - UI::STATUSBAR_HEIGHT;
         
-        std::vector<std::string> logs = state.ticker.getLogs();
-        if (!logs.empty()) {
-            // CHANGED: Brighter Cyan (0.2, 1.0, 1.0) for the event text
-            ImGui::TextColored(ImVec4(0.2f, 1.0f, 1.0f, 1.0f), ">> %s", logs.back().c_str());
-        } else {
-            // CHANGED: Brighter Grey (0.7) instead of TextDisabled (which was too dark)
-            ImGui::TextColored(ImVec4(0.7f, 0.7f, 0.7f, 1.0f), "Waiting for events...");
+        ImGui::SetNextWindowPos(pos, ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(viewport->WorkSize.x, UI::STATUSBAR_HEIGHT), ImGuiCond_Always);
+
+        ImGuiWindowFlags flags = ImGuiWindowFlags_NoDecoration | 
+                                 ImGuiWindowFlags_NoMove | 
+                                 ImGuiWindowFlags_NoResize | 
+                                 ImGuiWindowFlags_NoSavedSettings | 
+                                 ImGuiWindowFlags_NoFocusOnAppearing | 
+                                 ImGuiWindowFlags_NoNav;
+
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.15f, 0.15f, 0.15f, 1.0f));
+        
+        if (ImGui::Begin("Ticker", nullptr, flags)) {
+            
+            ImGui::GetWindowDrawList()->AddLine(
+                ImVec2(pos.x, pos.y), 
+                ImVec2(pos.x + viewport->WorkSize.x, pos.y), 
+                IM_COL32(100, 100, 100, 255), 1.0f
+            );
+
+            std::vector<std::string> logs = state.ticker.getLogs();
+            
+            if (!logs.empty()) {
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 0.0f, 1.0f));
+                ImGui::Text(">> %s", logs.back().c_str());
+                ImGui::PopStyleColor();
+            } else {
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.0f, 1.0f, 0.0f, 1.0f));
+                ImGui::Text("System Online. Listening for events...");
+                ImGui::PopStyleColor();
+            }
         }
         ImGui::End();
+        ImGui::PopStyleColor();
     }
 }

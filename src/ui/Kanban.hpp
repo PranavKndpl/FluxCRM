@@ -7,17 +7,16 @@ namespace UI {
 
 class Kanban {
 private:
-    // Local State (Moved from main.cpp)
+    // Local State 
     char new_lead_name[128] = "";
     char new_lead_company[128] = "";
     int new_lead_value = 1000;
-    bool show_error = false; // For validation feedback
+    bool show_error = false;
 
 public:
     void Render(CRMSystem& crm, bool is_connected) {
         if (!is_connected) return;
 
-        // 3. LAYOUT RESET: Use ImGuiCond_Always to force position every time
         ImGui::SetNextWindowPos(ImVec2(250, 0), ImGuiCond_Always);
         ImGui::SetNextWindowSize(ImVec2(1030, 550), ImGuiCond_Always);
         
@@ -32,7 +31,7 @@ public:
             show_error = false;
         }
 
-        // --- Popup Modal (With Validation) ---
+        // --- Popup Modal ---
         if (ImGui::BeginPopupModal("Add Lead Form", NULL, ImGuiWindowFlags_AlwaysAutoResize)) {
             ImGui::Text("Create a new sales lead");
             ImGui::Separator();
@@ -47,7 +46,7 @@ public:
 
             ImGui::Dummy(ImVec2(0, 10));
 
-            // VALIDATION LOGIC
+            // string validation
             if (ImGui::Button("Save Lead", ImVec2(120, 0))) {
                 if (strlen(new_lead_name) == 0 || strlen(new_lead_company) == 0) {
                     show_error = true;
@@ -68,7 +67,6 @@ public:
             ImGui::EndPopup();
         }
 
-        // --- Columns Logic (Same as before) ---
         ImGui::Separator();
         const char* stages[] = { "New", "Contacted", "Won" };
         ImGui::Columns(3, "kanban_cols");
@@ -79,13 +77,9 @@ public:
             
             auto leads = crm.getLeadsByStage(stages[i]);
             for (const auto& lead : leads) {
-                // ... (Existing Card Rendering Logic) ...
                 ImGui::PushID(lead.id);
                 std::string label = lead.name + "\n" + lead.company + "\n$" + std::to_string(lead.value);
                 ImGui::Button(label.c_str(), ImVec2(-FLT_MIN, 80));
-                
-                // Context Menu Logic Here (Promote/Delete)
-                // ...
                 
                 ImGui::PopID();
                 ImGui::Dummy(ImVec2(0.0f, 5.0f));

@@ -4,6 +4,12 @@
 #include <string>
 
 namespace UI {
+    
+    // --- LAYOUT CONSTANTS ---
+    const float SIDEBAR_WIDTH = 250.0f;
+    const float PIPELINE_HEIGHT = 500.0f;
+    const float STATUSBAR_HEIGHT = 40.0f; 
+    const float ANALYTICS_HEIGHT = 360.0f;
 
     struct AppState {
         // Core Systems
@@ -18,7 +24,7 @@ namespace UI {
         std::string status_msg = "Disconnected";
 
         // Layout State
-        bool reset_layout = false; // <--- NEW FLAG
+        bool reset_layout = false; 
 
         // Shared Data
         double stage_counts[3] = {0, 0, 0};
@@ -27,6 +33,7 @@ namespace UI {
 
         // Modal/Selection State
         bool show_details_modal = false;
+        bool show_clear_confirm = false;
         Lead selected_lead; 
     };
 }
